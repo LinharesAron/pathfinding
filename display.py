@@ -30,7 +30,7 @@ class Point:
     def distance_to(self, target):
         heading = target - self
         return heading, heading.magnetude
-        
+
     def direction_to(self, target):
         heading, distance = self.distance_to(target)
         return heading / distance
@@ -47,8 +47,10 @@ class Point:
         return math.acos(dot)
 
 class Window:
-    def __init__(self, width, height, title):
+    def __init__(self, width, height, title, grid_size = 5):
         self.width, self.height = width, height
+        pygame.init()
+
         self.surface = pygame.display.set_mode((width, height))
 
         pygame.display.set_caption(title)
@@ -56,27 +58,29 @@ class Window:
         self.surface.fill(background_colour)
         self.clock = pygame.time.Clock()
 
-        self.running = True
+        self.font = pygame.font.SysFont('Ariel', 35)
 
-    def draw_grid(self, size=5):
-        self.default_size = self.width / size
-        width_cell, height_cell = (math.ceil(self.width/self.default_size), math.ceil(self.height/self.default_size))
+        self.running = True
+        self.diameter = self.width / grid_size
+        self.radius = self.diameter / 2
+
+    def draw_grid(self):
+        width_cell, height_cell = (math.ceil(self.width/self.diameter), math.ceil(self.height/self.diameter))
         self.grid = [[0 for _ in range(width_cell)] for _ in range(height_cell)]
 
         for x in range(width_cell):
             for y in range(height_cell):
-                self.draw_square(Point(x, y), self.default_size)
+                self.draw_square(Point(x, y))
 
-    def draw_circle(self, point, size = None, colour=(0,0,255), thickness=0):
-        diameter = size if size else self.default_size
-        radius = diameter / 2
+    def center_square(self, point):
+        return self.radius + (point.x * self.diameter), self.radius + (point.y * self.diameter)
 
-        x, y = (radius + (point.x * diameter), radius + (point.y * diameter))
-        pygame.draw.circle(self.surface, colour, (x, y), radius, thickness)
+    def draw_circle(self, point, colour=(0,0,255), thickness=0):
+        x, y = self.center_square(point)
+        pygame.draw.circle(self.surface, colour, (x, y), self.radius, thickness)
     
-    def draw_square(self, point, size = None, colour=(0,0,0), thickness=1):
-        size = size if size else self.default_size
-        pygame.draw.rect(self.surface, colour, (point.x * size, point.y * size, size, size), thickness)
+    def draw_square(self, point, colour=(0,0,0), thickness=1):
+        pygame.draw.rect(self.surface, colour, (point.x * self.diameter, point.y * self.diameter, self.diameter, self.diameter), thickness)
 
     def point_on_circle(self, radius, diameter, point, direction):
         angle = forward.angle(direction)
@@ -90,18 +94,17 @@ class Window:
         return radius + (point.x * diameter) + difx, radius + (point.y * diameter) + dify
 
     def draw_line(self, point_origin, point_destiny, colour=(0,0,0), thickness=1):
-        diameter = self.default_size
-        radius = diameter / 2
-        
-        o_x, o_y = self.point_on_circle(radius, diameter, point_origin, point_origin.direction_to(point_destiny))
-        d_x, d_y = self.point_on_circle(radius, diameter, point_destiny, point_destiny.direction_to(point_origin))
+        o_x, o_y = self.point_on_circle(self.radius, self.diameter, point_origin, point_origin.direction_to(point_destiny))
+        d_x, d_y = self.point_on_circle(self.radius, self.diameter, point_destiny, point_destiny.direction_to(point_origin))
 
-        pygame.draw.line(self.surface, (255, 0, 0), 
+        pygame.draw.line(self.surface, colour, 
                     (o_x, o_y), 
                     (d_x, d_y), thickness)
-
-        #pygame.draw.line(self.surface, colour, (o_x, o_y), (d_x, d_y), thickness)
-
+    
+    def draw_letter(self, point, letter, thickness=10, colour=(255,255,255)):
+        l = self.font.render(letter, thickness, colour)
+        x, y = self.center_square(point)
+        self.surface.blit(l, (x, y))
 
     def run(self, func_action):
         while self.running:
