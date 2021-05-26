@@ -27,13 +27,15 @@ class Point:
     def magnetude(self):
         return float(math.sqrt(self.x * self.x + self.y * self.y))
 
+    def heading(self, target):
+        return target - self
+
     def distance_to(self, target):
-        heading = target - self
-        return heading, heading.magnetude
+        return self.heading(target).magnetude
 
     def direction_to(self, target):
-        heading, distance = self.distance_to(target)
-        return heading / distance
+        heading = self.heading(target)
+        return heading / heading.magnetude
 
     def dot(self, to):
         return self.x * to.x + self.y * to.y
