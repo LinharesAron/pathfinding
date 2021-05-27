@@ -9,12 +9,15 @@ class PathFinding:
             self.h_cost = h
             self.parent = parent
         
+        @property
         def f_cost(self):
-            return self.g + self.h
+            return self.g_cost + self.h_cost
 
         def __eq__(self, othr):
-            return (isinstance(othr, type(self))
-                    and self.estado == othr.estado)
+            return ((isinstance(othr, type(self))
+                    and self.estado == othr.estado) or
+                    (isinstance(othr, type(self.estado))
+                    and self.estado == othr))
 
         def __hash__(self):
             return hash(self.estado)
@@ -22,11 +25,14 @@ class PathFinding:
     def __init__(self):
         self.open = []
         self.close = set()
-        self.paths = {}
 
-    def get_conexao_path(self, estado):
+    def get_conexao_path(self, estado, end_point, parent):
         for conexao in estado.conexao:
-            yield self.paths.setdefault(conexao, self.Path(conexao.espaco, conexao.custo, 0, None))
+            if conexao.espaco in self.open:
+                yield  True, conexao.custo, [ item for item in self.open if item.estado == conexao.espaco][0]
+            else:
+                yield False, conexao.custo, self.Path(conexao.espaco, conexao.custo, estado.point.distance_to(end_point), parent)
+            
 
     def repro_path(self, start, end):
         current = end
@@ -34,7 +40,7 @@ class PathFinding:
         while current != start:
             path.append(current)
             current = current.parent
-        return reversed(path)
+        return list(reversed(path))
     
     def find_path(self, start, end):
         start = self.Path(start, 0, start.point.distance_to(end.point), None)
@@ -42,24 +48,28 @@ class PathFinding:
 
         self.open.append(start)
         while self.open:
-            current = self.open.pop(0)
+            current = self.open[0]
+            for b in self.open:
+                if b.f_cost < current.f_cost or (b.f_cost == current.f_cost and b.h_cost < current.h_cost):
+                    current = b
+            
+            self.open.remove(current)
             self.close.add(current)
 
             if current == end:
-                return self.repro_path(start, current)
+                return [start] + self.repro_path(start, current)
 
-            for next_path in self.get_conexao_path(current.estado):
+            for is_in_open, g_cost, next_path in self.get_conexao_path(current.estado, end.estado.point, current):
                 if next_path in self.close:
                     continue
 
-                new_g_cost = current.g_cost + current.estado.point.distance_to(next_path.estado.point)
-                if new_g_cost < next_path.g_cost or next_path not in self.open:
-                    next_path.g_cost = new_g_cost
-                    next_path.h_cost = next_path.estado.point.distance_to(end.estado.point)
-                    next_path.parent = current
-
-                    if next_path not in self.open:
-                        self.open.append(next_path)
+                if is_in_open:
+                    new_g_cost = current.g_cost + g_cost
+                    if new_g_cost < next_path.g_cost:
+                        next_path.g_cost = new_g_cost
+                        next_path.parent = current
+                else:
+                    self.open.append(next_path)
 
 
 
@@ -103,8 +113,8 @@ espacos["C"].conecta_espaco(5, espacos["A"])
 espacos["C"].conecta_espaco(7.5, espacos["B"])
 espacos["B"].conecta_espaco(7.5, espacos["C"])
 
-espacos["F"].conecta_espaco(15, espacos["B"])
-espacos["B"].conecta_espaco(15, espacos["F"])
+espacos["F"].conecta_espaco(45, espacos["B"])
+espacos["B"].conecta_espaco(45, espacos["F"])
 
 espacos["C"].conecta_espaco(5, espacos["F"])
 espacos["F"].conecta_espaco(5, espacos["C"])
@@ -112,8 +122,8 @@ espacos["F"].conecta_espaco(5, espacos["C"])
 espacos["F"].conecta_espaco(7.5, espacos["D"])
 espacos["D"].conecta_espaco(7.5, espacos["F"])
 
-espacos["F"].conecta_espaco(12.5, espacos["E"])
-espacos["E"].conecta_espaco(12.5, espacos["F"])
+espacos["F"].conecta_espaco(15, espacos["E"])
+espacos["E"].conecta_espaco(15, espacos["F"])
 
 espacos["E"].conecta_espaco(5, espacos["D"])
 espacos["D"].conecta_espaco(5, espacos["E"])
@@ -131,7 +141,7 @@ pathfinding = PathFinding()
 
 path = pathfinding.find_path(start, end)
 
-print(start.label, '->')
-for p in path:
-    print(p.estado.label, '->')
+for i in range(0, len(path) - 1):
+    window.draw_line(path[i].estado.point, path[i+1].estado.point, thickness=5, colour=(255,0,0))
+
 window.run(call_on_update)
